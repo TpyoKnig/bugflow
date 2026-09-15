@@ -192,6 +192,11 @@ def main():
         page = ctx.new_page()
         page.add_init_script(FLY_OVERLAY)
         hand = FlyHand(page, args.pace)
+        page.goto(f"{base}/workflow/new")            # be on screen before the brain's first decision
+        page.wait_for_selector('[data-test-id="canvas-add-button"]')
+        hand._ensure()
+        page.evaluate("() => window.__fly.moveTo(120, 120)")
+        hand.say("waiting for the brain…")
 
         built, current_brief, last_choice = 0, None, None
         t0 = time.time()
