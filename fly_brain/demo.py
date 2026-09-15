@@ -75,6 +75,7 @@ class Demo:
             "motor": {g: idx.tolist() for g, idx in self.brain.motor.items()},
             "triggers": TRIGGERS, "actions": ACTIONS,
             "briefs": [b["brief"] for b in BRIEFS],
+            "current": self.current,                  # in-flight brief index, for pages that join mid-episode
         }
 
     def episodes(self):
@@ -86,6 +87,7 @@ class Demo:
         while True:
             bi = ep % len(BRIEFS)
             brief = BRIEFS[bi]
+            self.current = bi
             yield {"type": "brief", "index": bi, "text": brief["brief"], "episode": ep}
             stim_idx = self.brain.sensory[f"brief_{bi}"]
             net.v[:] = 0.0
@@ -117,6 +119,7 @@ class Demo:
 
     # --- broadcast: one simulation, every connected page/puppet sees the same events ---
     puppet_connected = False
+    current = -1
     ack = threading.Event()
     clients: list = []
     lock = threading.Lock()
@@ -172,8 +175,9 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         if self.path == "/ack":                    # puppet finished building in the editor
             self.demo.ack.set()
-        elif self.path == "/puppet":               # puppet attached: server now waits for acks
+        elif self.path == "/puppet":               # puppet attached (it is already subscribed): wait for acks
             self.demo.puppet_connected = True
+            self.demo.ack.set()                    # release a wait left over from a puppet that died
         elif self.path == "/status":               # puppet narrates what it is doing
             self.demo.broadcast({"type": "puppet", "text": body.decode()})
         self.send_response(204)

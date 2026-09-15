@@ -50,16 +50,20 @@ FLY_OVERLAY = r"""
     #__ping { position:fixed; z-index:999998; pointer-events:none; width:18px; height:18px; border-radius:50%;
               border:3px solid #ff6d5a; opacity:0; transform:translate(-50%,-50%) scale(.4); }
     @keyframes __pingA { from { opacity:1; transform:translate(-50%,-50%) scale(.4) } to { opacity:0; transform:translate(-50%,-50%) scale(2.6) } }
+    #__banner { position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:999999; pointer-events:none;
+                background:#111; color:#fff; font:800 30px/1.1 ui-sans-serif,system-ui; padding:14px 26px; border-radius:16px;
+                box-shadow:0 10px 30px rgba(0,0,0,.35); white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis; }
   `;
   document.documentElement.appendChild(st);
   const fly = document.createElement('div'); fly.id = '__fly'; fly.textContent = '\u{1FAB0}';
   const say = document.createElement('div'); say.id = '__say';
-  const ping = document.createElement('div'); ping.id = '__ping';
-  document.documentElement.append(fly, say, ping);
+    const ping = document.createElement('div'); ping.id = '__ping';
+    const banner = document.createElement('div'); banner.id = '__banner'; banner.textContent = '\u{1FAB0} waiting for the brain\u2026';
+    document.documentElement.append(fly, say, ping, banner);
   window.__fly = {
     moveTo(x, y) { fly.style.left = (x - 27) + 'px'; fly.style.top = (y - 44) + 'px';
                    say.style.left = (x - 10) + 'px'; say.style.top = (y - 60 - say.offsetHeight - 20) + 'px'; },
-    say(t) { say.textContent = t; say.style.opacity = t ? 1 : 0; },
+    say(t) { say.textContent = t; say.style.opacity = t ? 1 : 0; if (t) banner.textContent = '\u{1FAB0} ' + t; },
     click(x, y) { ping.style.left = x + 'px'; ping.style.top = y + 'px';
                   ping.style.animation = 'none'; void ping.offsetWidth; ping.style.animation = '__pingA .6s ease-out'; },
   };
@@ -115,7 +119,8 @@ def add_node(hand: FlyHand, page, opener: str, node_type: str):
 
 
 def build_in_editor(hand: FlyHand, page, base: str, brief: dict, trigger: str, action: str, narrate):
-    page.goto(f"{base}/workflow/new")
+    if not page.url.endswith("/workflow/new"):      # first build starts on the canvas we opened at startup
+        page.goto(f"{base}/workflow/new")
     page.wait_for_selector('[data-test-id="canvas-add-button"]')
     hand._ensure()
     page.evaluate("() => window.__fly.moveTo(120, 120)")
@@ -148,9 +153,9 @@ def build_in_editor(hand: FlyHand, page, base: str, brief: dict, trigger: str, a
     time.sleep(3.0 * hand.pace)
 
 
-def sse_events(url: str):
-    """Yield parsed events from the demo server's Server-Sent Events stream."""
-    with urllib.request.urlopen(url) as resp:
+def sse_events(resp):
+    """Yield parsed events from an open Server-Sent Events response."""
+    with resp:
         for raw in resp:
             line = raw.decode().rstrip("\n")
             if line.startswith("data: "):
@@ -180,7 +185,8 @@ def main():
         req = urllib.request.Request(f"{demo_url}{path}", data=text.encode(), method="POST")
         urllib.request.urlopen(req, timeout=5).close()
 
-    post("/puppet")   # tell the brain to wait for us between briefs
+    stream = urllib.request.urlopen(f"{demo_url}/events")   # subscribe first ...
+    post("/puppet")                                          # ... then tell the brain to wait for our acks
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=args.headless, args=["--window-size=1500,950"])
@@ -190,6 +196,7 @@ def main():
         r = ctx.request.post(f"{base}/rest/login", data={"emailOrLdapLoginId": args.email, "password": args.password})
         assert r.status == 200, f"n8n login failed: HTTP {r.status} {r.text()[:200]}"
         page = ctx.new_page()
+        t0 = time.time()                             # recording starts with the page; t=+... in the log is relative to it
         page.add_init_script(FLY_OVERLAY)
         hand = FlyHand(page, args.pace)
         page.goto(f"{base}/workflow/new")            # be on screen before the brain's first decision
@@ -199,9 +206,8 @@ def main():
         hand.say("waiting for the brain…")
 
         built, current_brief, last_choice = 0, None, None
-        t0 = time.time()
         try:
-            for ev in sse_events(f"{demo_url}/events"):
+            for ev in sse_events(stream):
                 if args.seconds and time.time() - t0 > args.seconds:
                     break
                 if ev["type"] == "brief":
@@ -213,8 +219,8 @@ def main():
                         post("/ack")             # joined mid-episode: release the brain, wait for the next brief
                         continue
                     c = last_choice
-                    print(f"[{built + 1}] {current_brief['brief']!r} -> {c['trigger']} + {c['action']} "
-                          f"({'correct' if c['correct'] else 'wrong'})")
+                    print(f"[{built + 1}] t=+{time.time() - t0:.1f}s {current_brief['brief']!r} -> {c['trigger']} + {c['action']} "
+                          f"({'correct' if c['correct'] else 'wrong'})", flush=True)
                     build_in_editor(hand, page, base, current_brief, c["trigger"], c["action"],
                                     lambda t: post("/status", t))
                     post("/ack")
