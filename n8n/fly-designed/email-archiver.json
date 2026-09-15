@@ -1,0 +1,49 @@
+{
+  "id": "flyDesigned-email-archiver",
+  "name": "Fly-designed: When an email arrives, save it to disk",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e559d69d-3263-56e0-bd76-d7f7940002e0",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "fly-email.txt",
+        "options": {}
+      },
+      "id": "c0aff812-8b71-5ec0-b114-80b7c7cf5bbd",
+      "name": "Action",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

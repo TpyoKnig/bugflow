@@ -1,0 +1,100 @@
+{
+  "id": "flyBrainEventsPortable",
+  "name": "Fly Brain Events (portable)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fly-brain",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7c1d0c4a-0b4e-4f3a-9d2b-2f6e1a9c0b01",
+      "name": "Fly Brain Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "fly-brain-webhook-portable-001"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "neuron_group",
+              "type": "string",
+              "value": "={{ $json.body.neuron_group }}"
+            },
+            {
+              "id": "a2",
+              "name": "spike_rate",
+              "type": "number",
+              "value": "={{ $json.body.spike_rate }}"
+            },
+            {
+              "id": "a3",
+              "name": "step",
+              "type": "number",
+              "value": "={{ $json.body.step }}"
+            },
+            {
+              "id": "a4",
+              "name": "mode",
+              "type": "string",
+              "value": "={{ $json.body.mode }}"
+            },
+            {
+              "id": "a5",
+              "name": "message",
+              "type": "string",
+              "value": "=fly brain: {{ $json.body.neuron_group }} burst (rate {{ $json.body.spike_rate }}) at step {{ $json.body.step }} [{{ $json.body.mode }}]"
+            },
+            {
+              "id": "a6",
+              "name": "receivedAt",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c1d0c4a-0b4e-4f3a-9d2b-2f6e1a9c0b02",
+      "name": "Format Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "7c1d0c4a-0b4e-4f3a-9d2b-2f6e1a9c0b03",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Fly Brain Webhook": {
+      "main": [
+        [
+          { "node": "Format Event", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format Event": {
+      "main": [
+        [
+          { "node": "Respond", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

@@ -1,0 +1,55 @@
+{
+  "id": "flyDesigned-form-to-endpoint",
+  "name": "Fly-designed: When a form is submitted, post it to the endpoint",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fly-form-to-endpoint",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "44e20889-0929-5140-9013-1733c0efa225",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "flyDesigned-form-to-endpoint"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5680/webhook/fly-brain",
+        "options": {}
+      },
+      "id": "39ce197d-8f18-5685-8790-76c6dbad431d",
+      "name": "Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

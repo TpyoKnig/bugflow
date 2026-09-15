@@ -1,0 +1,7 @@
+.venv
+__pycache__
+*.pyc
+fly-events.log
+k8s
+n8n
+README.md

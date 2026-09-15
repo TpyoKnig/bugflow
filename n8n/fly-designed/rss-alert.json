@@ -1,0 +1,45 @@
+{
+  "id": "flyDesigned-rss-alert",
+  "name": "Fly-designed: When a new RSS item appears, alert the team channel",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b3dcef02-4a93-543d-94e3-64e8431476c7",
+      "name": "Trigger",
+      "type": "n8n-nodes-base.rssFeedTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ee98962f-97bd-5de6-977c-7efbc6a5afab",
+      "name": "Action",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        460,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

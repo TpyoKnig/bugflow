@@ -1,0 +1,10 @@
+# Core: synthetic mode needs only numpy.
+numpy>=2
+
+# Real mode (MaleCNS via neuPrint). Pulls in pandas, requests, pyarrow, tqdm.
+# Comment these out for a smaller image if you only run synthetic mode.
+neuprint-python>=0.6.3
+pandas>=2
+
+# Optional: only for plot_curve.py (regenerates fly-learning-curve.png).
+# matplotlib>=3

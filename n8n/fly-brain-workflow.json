@@ -1,0 +1,60 @@
+{
+  "id": "flyBrainEvents001",
+  "name": "Fly Brain Events",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fly-brain",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3f6a6f2e-2f3f-4b8e-9b1a-6a0f1c8b1a01",
+      "name": "Fly Brain Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "fly-brain-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\n\nconst event = $input.first().json.body ?? $input.first().json;\nconst logPath = 'fly-events.log';\nconst entry = { receivedAt: new Date().toISOString(), ...event };\nfs.appendFileSync(logPath, JSON.stringify(entry) + \"\\n\");\n\nreturn [{ json: { ...entry, logPath, logged: true } }];"
+      },
+      "id": "3f6a6f2e-2f3f-4b8e-9b1a-6a0f1c8b1a02",
+      "name": "Log Fly Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "3f6a6f2e-2f3f-4b8e-9b1a-6a0f1c8b1a03",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Fly Brain Webhook": {
+      "main": [
+        [
+          { "node": "Log Fly Event", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Log Fly Event": {
+      "main": [
+        [
+          { "node": "Respond", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

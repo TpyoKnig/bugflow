@@ -1,0 +1,90 @@
+# fly-brain bridge: long-running simulation that POSTs motor bursts to n8n.
+#
+# Apply:   kubectl apply -f k8s/bridge.yaml
+# Watch:   kubectl -n bugflow logs -f deploy/fly-brain-bridge
+#
+# Before applying, edit:
+#   - image:            your registry path for the image built from ./Dockerfile
+#   - N8N_WEBHOOK_URL:  in-cluster n8n Service DNS, see README "Running in Kubernetes"
+#   - (real mode only)  the neuprint-token Secret and FLY_MODE/FLY_*_GROUPS values
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bugflow
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fly-brain-bridge
+  namespace: bugflow
+data:
+  # Production webhook path of the published n8n workflow. Format:
+  #   http://<n8n-service>.<n8n-namespace>.svc.cluster.local:<port>/webhook/fly-brain
+  N8N_WEBHOOK_URL: "http://host.docker.internal:5680/webhook/fly-brain"
+  FLY_MODE: "real"               # or "synthetic" (no Secret needed)
+  FLY_STEPS: "0"                 # 0 = run forever
+  FLY_STEP_DELAY: "0.5"          # seconds per simulation step; ~1 beat every 6s with FLY_BEAT_EVERY=12
+  FLY_BEAT_EVERY: "12"
+  FLY_WINDOW: "5"
+  FLY_RATE_THRESHOLD: "0.15"
+  FLY_COOLDOWN: "10"
+  FLY_TAU: "4.0"
+  FLY_V_THRESH: "1.0"
+  FLY_SEED: "0"
+  # Real mode only (ignored in synthetic mode). Regexes match neuron *instance*
+  # strings (<type>_<side>). Verify with: python3 -m fly_brain.lookup '<regex>'
+  FLY_SENSORY_GROUPS: '{"looming": ["LPLC2_.*", "LC4_.*"]}'
+  FLY_MOTOR_GROUPS: '{"escape_dn": "DNp01\\(GF\\)_.*"}'
+  FLY_MIN_WEIGHT: "3"
+  FLY_WEIGHT_SCALE: "1000"       # calibrated: 20/100 saturate the GF pair, 3000 is silent
+---
+# Real mode only. Create with:
+#   kubectl -n bugflow create secret generic neuprint-token --from-literal=NEUPRINT_TOKEN='<token>'
+# Left out of this file on purpose so the token never lands in git.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fly-brain-bridge
+  namespace: bugflow
+  labels:
+    app: fly-brain-bridge
+spec:
+  replicas: 1                     # keep at 1: each replica is an independent brain firing its own events
+  selector:
+    matchLabels:
+      app: fly-brain-bridge
+  template:
+    metadata:
+      labels:
+        app: fly-brain-bridge
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bridge
+          image: bugflow-bridge:dev    # local OrbStack image store; replace with your registry path
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: fly-brain-bridge
+            - secretRef:
+                name: neuprint-token
+                optional: true      # only needed for FLY_MODE=real
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              # Synthetic: ~60Mi. Real mode holds a dense n*n float64 matrix:
+              # 2,000 neurons = 32MB, 10,000 neurons = 800MB. Size accordingly.
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
